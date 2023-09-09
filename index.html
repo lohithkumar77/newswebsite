@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bootstrap demo</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">NewsJunky</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="/?q=all&pgno=1">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/?q=cricket&pageno=1">cricket</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/?q=sports&pageno=1">Sports</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/?q=weather&pageno=1">weather</a>
+          </li>
+        </ul>
+        <form class="d-flex" role="search">
+          <input class="form-control me-2" name="q" type="search" placeholder="Search" aria-label="Search">
+          <input class="form-control me-2" name="page" type="hidden" value="1" placeholder="Search" aria-label="Search">
+          <button class="btn btn-outline-success" type="submit">Search</button>
+        </form>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container row mx-auto">
+    <div id="content" class="row">Loading..</div>
+    <div class="prevNext my-4 d-flex justify-content-center">
+      <nav aria-label="Page navigation example">
+        <ul class="pagination">
+          <li class="page-item" id="pre"><a class="page-link" href="#">Previous</a></li>
+          <li class="page-item"><a class="page-link" href="#">1</a></li>
+          <li class="page-item"><a class="page-link" href="#">2</a></li>
+          <li class="page-item"><a class="page-link" href="#">3</a></li>
+          <li class="page-item" id="next"><a class="page-link" href="#">Next</a></li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Language Selection -->
+  <div class="container my-4">
+    <div class="d-flex justify-content-center">
+      <button class="btn btn-primary" id="langButton" data-lang="en">English</button>
+      <button class="btn btn-primary mx-2" id="langButton" data-lang="fr">French</button>
+      <button class="btn btn-primary" id="langButton" data-lang="es">Spanish</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/js/bootstrap.bundle.min.js" integrity="sha384-qKXV1j0HvMUeCBQ+QVp7JcfGl760yU08IQ+GpUo5hlbpg51QRiuqHAJz8+BrxE/N" crossorigin="anonymous">
+  </script>
+
+  <script>
+    console.log('hey i am javascript');
+    let query = window.location.search.split("?")[1].split("&")[0].split("=")[1];
+    let pageno = parseInt(window.location.search.split("?")[1].split("&")[1].split("=")[1]);
+    let lang = 'en'; // Default language
+
+    // Function to translate text using Microsoft Translator API
+    const translateText = async (text, targetLang) => {
+      const subscriptionKey = 'YOUR_TRANSLATOR_API_KEY';
+      const endpoint = 'https://api.cognitive.microsofttranslator.com';
+
+      const url = `${endpoint}/translate?api-version=3.0&to=${targetLang}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': subscriptionKey,
+          'Content-type': 'application/json',
+          'X-ClientTraceId': generateUuid(),
+        },
+        body: JSON.stringify([
+          {
+            text,
+          },
+        ]),
+      });
+
+      const translatedData = await response.json();
+      return translatedData[0].translations[0].text;
+    };
+
+    const fetchNews = async (query, page, language) => {
+      let a = await fetch(`https://newsapi.org/v2/everything?q=${query}&apiKey=b8023f8d14094b449ad87d53f8615aef&pagesize=10&page=${page}&language=${language}`);
+      let r = await a.json();
+      console.log(r);
+      let totalpages = Math.ceil(r.totalResults / 10);
+      let pre = document.getElementById('pre');
+      let next = document.getElementById('next');
+      pre.href = `/?q=${query}&pageno=${page - 1}`;
+      next.href = `/?q=${query}&pageno=${page + 1}`;
+      let str = "";
+      for (let item of r.articles) {
+        let date = new Date(item.publishedAt).toLocaleDateString();
+
+        // Translate the title and description to the selected language
+        let translatedTitle = await translateText(item.title, language);
+        let translatedDescription = await translateText(item.description, language);
+
+        str += `
+          <div class="card m-2" style="width: 18rem;">
+            <img src="${item.urlToImage}" class="card-img-top" alt="...">
+            <div class="card-body">
+              <h5 class="card-title">${translatedTitle}</h5>
+              <span class="fw-bold">Published: ${date}</span>
+              <p class="card-text">${translatedDescription}</p>
+              <a href="${item.url}" target="_blank" class="btn btn-primary">Read More..</a>
+            </div>
+          </div>`;
+      }
+      let content = document.getElementById('content');
+      content.innerHTML = str;
+    }
+
+    const changeLanguage = (language) => {
+      lang = language;
+      fetchNews(query, pageno, lang);
+    }
+
+    // Event Listener for Language Selection Buttons
+    const langButtons = document.querySelectorAll('#langButton');
+    langButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const selectedLang = button.getAttribute('data-lang');
+        changeLanguage(selectedLang);
+      });
+    });
+
+    fetchNews(query, pageno, lang);
+  </script>
+</body>
+
+</html>
